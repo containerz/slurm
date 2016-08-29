@@ -140,6 +140,7 @@ man page for more information.</li>
 <li>A mechanism is required to boot nodes in the desired configuration. This
 mechanism must be integrated with existing Slurm infrastructure for
 <a href="sbatch.html">rebooting nodes on user request (--reboot)</a> plus
+<u>(for Cray systems only)</u>
 <a href="power_save.html">power saving</a> (powering down idle nodes and
 restarting them on demand).</li>
 </ol>
@@ -147,9 +148,14 @@ restarting them on demand).</li>
 <p>In addition, there is a DebugFlags option of "NodeFeatures" which will
 generate detailed information about KNL operations.</p>
 
-<p>Note that a node's KNL-specific available and active features are not
-included in the "slurm.conf" configuration file, but are set and the managed
-by the NodeFeatures plugin.
+<p>The KNL-specific available and active features are configured differently
+based upon the plugin configured.<br>
+<u>For the knl_cray plugin</u>, KNL-specific available and active features are
+not included in the "slurm.conf" configuration file, but are set and the managed
+by the NodeFeatures plugin when the slurmctld daemon starts.<br>
+<u>For the knl_generic plugin</u>, KNL-specific features should be defined
+in the "slurm.conf" configuration file. When the slurmd daemon starts on each
+compute node, it will update the available and active features as needed.<br>
 Features which are not KNL-specific (e.g. rack number, "knl", etc.) will be
 copied from the node's "Features" configuration in "slurm.conf" to both the
 available and active feature fields and not modified by the NodeFeatures
@@ -190,12 +196,14 @@ on the order of 20 minutes.</li>
 
 <p>On Cray systems NodeFeaturesPlugins should be set to "knl_cray".</p>
 
-<p>The configuration file will be named "knl_cray.conf".
+<p>The KNL-specific configuration file will be named "knl_cray.conf".
 The file will include the path to the capmc program (CapmcPath), which is used
 to get a node's available MCDRAM and NUMA modes, change the modes, power the
 node down, reboot it, etc.
 Note the "CapmcTimeout" parameter is the time required for the capmc program
-to respond to a request and NOT the time for a boot operation to complete.</p>
+to respond to a request and NOT the time for a boot operation to complete.
+Optionally specify default and available NUMA and MCDRAM modes available to
+users and identify who is permitted to reboot the node.</p>
 
 <p>Power saving mode is integrated with rebooting nodes in the desired mode.
 Programs named "capmc_resume" and "capmc_suspend" are provided to boot nodes in
@@ -213,18 +221,7 @@ The amount of HBM on each node should not be configured in a Slurm configuration
 file, but that information will be loaded by the knl_cray plugin using
 information provided by the capmc program.</p>
 
-<h3>Sample knl_cray.conf File</h3>
-
-<pre>
-# Sample knl_cray.conf
-CapmcPath=/opt/cray/capmc/default/bin/capmc
-CapmcTimeout=2000	# msec
-DefaultNUMA=a2a         # NUMA=all2all
-AllowNUMA=a2a,snc2,hemi
-DefaultMCDRAM=cache     # MCDRAM=cache
-</pre>
-
-<h3>Sample slurm.conf File</h3>
+<h3>Sample slurm.conf file for knl_cray plugin</h3>
 
 <pre>
 # Sample slurm.conf
@@ -240,8 +237,56 @@ Nodename=default Sockets=1 CoresPerSocket=68 ThreadsPerCore=4 RealMemory=128000 
 NodeName=nid[00000-00127] State=UNKNOWN
 </pre>
 
+<h3>Sample knl_cray.conf file</h3>
+
+<pre>
+# Sample knl_cray.conf
+CapmcPath=/opt/cray/capmc/default/bin/capmc
+CapmcTimeout=2000	# msec
+DefaultNUMA=a2a         # NUMA=all2all
+AllowNUMA=a2a,snc2,hemi
+DefaultMCDRAM=cache     # MCDRAM=cache
+</pre>
+
+<h3>Generic Configuration</h3>
+
+<p>Other KNL systems should have NodeFeaturesPlugins set to "knl_generic".
+The program used to reboot the node (from the compute node) and the reboot
+timeout interval should also be configured using the RebootProgram and
+ResumeTimeout parameters.</p>
+
+<p>The KNL-specific configuration file will be named "knl_generic.conf".
+The file will include the path to the syscfg program (SyscfgPath), which is used
+to get a node's available MCDRAM and NUMA modes, change the modes, etc.
+Optionally specify default and available NUMA and MCDRAM modes available to
+users and identify who is permitted to reboot the node.</p>
+
+<h3>Sample slurm.conf file for knl_generic plugin</h3>
+
+<pre>
+# Sample slurm.conf
+NodeFeaturesPlugins=knl_generic
+DebugFlags=NodeFeatures
+#
+RebootProgram=/usr/sbin/reboot
+ResumeTimeout=1800
+...
+Nodename=default Sockets=1 CoresPerSocket=68 ThreadsPerCore=4 RealMemory=128000 Feature=knl,a2a,snc2,hemi,cache,equal,flat
+NodeName=nid[00000-00127] State=UNKNOWN
+</pre>
+
+<h3>Sample knl_generic.conf file</h3>
+
+<pre>
+# Sample knl_generic.conf
+DefaultNUMA=a2a         # NUMA=all2all
+AllowNUMA=a2a,snc2,hemi
+DefaultMCDRAM=cache     # MCDRAM=cache
+SyscfgPath=/usr/sbin/syscfg
+</pre>
+
 <p class="footer"><a href="#top">top</a></p>
 
-<p style="text-align:center;">Last modified 26 July 2016</p>
+<p style="text-align:center;">Last modified 29 August 2016</p>
 
 <!--#include virtual="footer.txt"-->
