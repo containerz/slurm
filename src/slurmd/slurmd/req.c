@@ -69,6 +69,7 @@
 #include "src/common/log.h"
 #include "src/common/macros.h"
 #include "src/common/msg_aggr.h"
+#include "src/common/node_features.h"
 #include "src/common/node_select.h"
 #include "src/common/plugstack.h"
 #include "src/common/read_config.h"
@@ -2286,8 +2287,14 @@ _rpc_reboot(slurm_msg_t *msg)
 			if (reboot_msg && reboot_msg->features) {
 				xstrfmtcat(cmd, "%s %s",
 					   sp, reboot_msg->features);
-			} else
+				info("Node reboot request with features %s being processed",
+				     reboot_msg->features);
+				(void) node_features_g_node_set(
+						reboot_msg->features);
+			} else {
 				cmd = xstrdup(sp);
+				info("Node reboot request being processed");
+			}
 			if (access(sp, R_OK | X_OK) < 0)
 				error("Cannot run RebootProgram [%s]: %m", sp);
 			else if ((exit_code = system(cmd)))

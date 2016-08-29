@@ -2093,6 +2093,16 @@ extern char *node_features_p_job_xlate(char *job_features)
 	return node_features;
 }
 
+/* Set's the node's active features based upon job constraints.
+ * NOTE: Executed by the slurmd daemon.
+ * NOTE: Not applicable to Cray systems (mode controlled by slurmctld with capmc).
+ * IN active_features - New active features
+ * RET error code */
+extern int node_features_p_node_set(char *active_features)
+{
+	return SLURM_SUCCESS;
+}
+
 /* Return true if the plugin requires PowerSave mode for booting nodes */
 extern bool node_features_p_node_power(void)
 {

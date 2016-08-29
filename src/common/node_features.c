@@ -60,6 +60,7 @@ typedef struct node_features_ops {
 	int	(*job_valid)	(char *job_features);
 	char *	(*job_xlate)	(char *job_features);
 	bool	(*node_power)	(void);
+	int	(*node_set)	(char *active_features);
 	void	(*node_state)	(char **avail_modes, char **current_mode);
 	int	(*node_update)	(char *active_features, bitstr_t *node_bitmap);
 	char *	(*node_xlate)	(char *new_features, char *orig_features);
@@ -76,6 +77,7 @@ static const char *syms[] = {
 	"node_features_p_job_valid",
 	"node_features_p_job_xlate",
 	"node_features_p_node_power",
+	"node_features_p_node_set",
 	"node_features_p_node_state",
 	"node_features_p_node_update",
 	"node_features_p_node_xlate",
@@ -284,6 +286,27 @@ extern bool node_features_g_node_power(void)
 	END_TIMER2("node_features_g_node_power");
 
 	return node_power;
+}
+
+/* Set's the node's active features based upon job constraints.
+ * NOTE: Executed by the slurmd daemon.
+ * IN active_features - New active features
+ * RET error code */
+extern int node_features_g_node_set(char *active_features)
+{
+	DEF_TIMERS;
+	int i, rc = SLURM_SUCCESS;
+
+	START_TIMER;
+	(void) node_features_g_init();
+	slurm_mutex_lock(&g_context_lock);
+	for (i = 0; ((i < g_context_cnt) && (rc == SLURM_SUCCESS)); i++) {
+		rc = (*(ops[i].node_set))(active_features);
+	}
+	slurm_mutex_unlock(&g_context_lock);
+	END_TIMER2("node_features_g_node_set");
+
+	return rc;
 }
 
 /* Get this node's current and available MCDRAM and NUMA settings from BIOS.

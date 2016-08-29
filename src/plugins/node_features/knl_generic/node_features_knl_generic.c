@@ -1528,7 +1528,7 @@ extern void node_features_p_node_state(char **avail_modes, char **current_mode)
 	argv[4] = NULL;
 	resp_msg = _run_script(syscfg_path, argv, &status);
 	if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
-		error("%s: syscfg status:%u response:%s",
+		error("%s: syscfg (get cluster mode) status:%u response:%s",
 		      __func__, status, resp_msg);
 	}
 	if (resp_msg == NULL) {
@@ -1584,7 +1584,7 @@ extern void node_features_p_node_state(char **avail_modes, char **current_mode)
 	argv[4] = NULL;
 	resp_msg = _run_script(syscfg_path, argv, &status);
 	if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
-		error("%s: syscfg status:%u response:%s",
+		error("%s: syscfg (get memory mode) status:%u response:%s",
 		      __func__, status, resp_msg);
 	}
 	if (resp_msg == NULL) {
@@ -1598,7 +1598,11 @@ extern void node_features_p_node_state(char **avail_modes, char **current_mode)
 			} else if (!strncasecmp(tok, "Flat", 3)) {
 				xstrfmtcat(cur_state, "%s%s", cur_sep, "flat");
 			} else if (!strncasecmp(tok, "Hybrid", 3)) {
+				xstrfmtcat(cur_state, "%s%s", cur_sep, "hybrid");
+			} else if (!strncasecmp(tok, "Equal", 3)) {
 				xstrfmtcat(cur_state, "%s%s", cur_sep, "equal");
+			} else if (!strncasecmp(tok, "Auto", 3)) {
+				xstrfmtcat(cur_state, "%s%s", cur_sep, "auto");
 			}
 		}
 		if (slurm_strcasestr(resp_msg, "Cache")) {
@@ -1610,7 +1614,15 @@ extern void node_features_p_node_state(char **avail_modes, char **current_mode)
 			avail_sep = ",";
 		}
 		if (slurm_strcasestr(resp_msg, "Hybrid")) {
+			xstrfmtcat(avail_states, "%s%s", avail_sep, "hybrid");
+			avail_sep = ",";
+		}
+		if (slurm_strcasestr(resp_msg, "Equal")) {
 			xstrfmtcat(avail_states, "%s%s", avail_sep, "equal");
+			avail_sep = ",";
+		}
+		if (slurm_strcasestr(resp_msg, "Auto")) {
+			xstrfmtcat(avail_states, "%s%s", avail_sep, "auto");
 			/* avail_sep = ",";	CLANG error: Dead assignment */
 		}
 		xfree(resp_msg);
@@ -1716,6 +1728,158 @@ extern char *node_features_p_job_xlate(char *job_features)
 	}
 
 	return node_features;
+}
+
+static char *_find_key_val(char *key, char *resp_msg)
+{
+	char *sep = NULL, *tok, *val = NULL;
+	int i;
+
+	if ((key == NULL) || (resp_msg == NULL))
+		return NULL;
+
+	if ((tok = strstr(resp_msg, "Possible Values")))
+		tok += 15;
+	else
+		tok = resp_msg;
+	if ((tok = strstr(tok, key)))
+		sep = strchr(tok, ':');
+	if (sep) {
+		sep++;
+		while ((sep[0] != '\0')&& !isdigit(sep[0]))
+			sep++;
+		if (isdigit(sep[0])) {
+			val = xstrdup(sep);
+			for (i = 1 ; val[i]; i++) {
+				if (!isdigit(val[i])) {
+					val[i] = '\0';
+					break;
+				}
+			}
+		}
+	}
+
+	return val;
+}
+
+/* Set's the node's active features based upon job constraints.
+ * NOTE: Executed by the slurmd daemon.
+ * IN active_features - New active features
+ * RET error code */
+extern int node_features_p_node_set(char *active_features)
+{
+	char *resp_msg, *argv[10];
+	char *key;
+	int error_code = SLURM_SUCCESS, status = 0;
+	char *mcdram_mode = NULL, *numa_mode = NULL;
+
+	if ((active_features == NULL) || (active_features[0] == '\0'))
+		return SLURM_SUCCESS;
+
+	if (!syscfg_path) {
+		error("%s: SyscfgPath not configured", __func__);
+		return SLURM_ERROR;
+	}
+
+	/* Identify available Cluster/NUMA modes */
+	argv[0] = "syscfg";
+	argv[1] = "/d";
+	argv[2] = "BIOSSETTINGS";
+	argv[3] = "Cluster Mode";
+	argv[4] = NULL;
+	resp_msg = _run_script(syscfg_path, argv, &status);
+	if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
+		error("%s: syscfg (get cluster mode) status:%u response:%s",
+		      __func__, status, resp_msg);
+		error_code = SLURM_ERROR;
+	}
+	if (resp_msg == NULL) {
+		info("%s: syscfg returned no information", __func__);
+	} else {
+		if (strstr(active_features, "a2a"))
+			key = "All2All";
+		else if (strstr(active_features, "hemi"))
+			key = "Hemisphere";
+		else if (strstr(active_features, "quad"))
+			key = "Quadrant";
+		else if (strstr(active_features, "snc2"))
+			key = "SNC-2";
+		else if (strstr(active_features, "snc4"))
+			key = "SNC-4";
+		else
+			key = NULL;
+		numa_mode = _find_key_val(key, resp_msg);
+		xfree(resp_msg);
+	}
+
+	/* Reset current Cluster/NUMA mode */
+	if (numa_mode) {
+		argv[0] = "syscfg";
+		argv[1] = "/bcs";
+		argv[2] = "";
+		argv[3] = "BIOSSETTINGS";
+		argv[4] = "Cluster Mode";
+		argv[5] = numa_mode;
+		argv[6] = NULL;
+		resp_msg = _run_script(syscfg_path, argv, &status);
+		if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
+			error("%s: syscfg (set cluster mode) status:%u response:%s",
+			      __func__, status, resp_msg);
+			error_code = SLURM_ERROR;
+		}
+		xfree(numa_mode);
+	}
+
+	/* Identify available Memory/MCDRAM modes */
+	argv[0] = "syscfg";
+	argv[1] = "/d";
+	argv[2] = "BIOSSETTINGS";
+	argv[3] = "Memory Mode";
+	argv[4] = NULL;
+	resp_msg = _run_script(syscfg_path, argv, &status);
+	if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
+		error("%s: syscfg (get memory mode) status:%u response:%s",
+		      __func__, status, resp_msg);
+		error_code = SLURM_ERROR;
+	}
+	if (resp_msg == NULL) {
+		info("%s: syscfg returned no information", __func__);
+	} else {
+		if (strstr(active_features, "cache"))
+			key = "Cache";
+		else if (strstr(active_features, "flat"))
+			key = "Flat";
+		else if (strstr(active_features, "hybrid"))
+			key = "Hybrid";
+		else if (strstr(active_features, "equal"))
+			key = "Equal";
+		else if (strstr(active_features, "auto"))
+			key = "Auto";
+		else
+			key = NULL;
+		mcdram_mode = _find_key_val(key, resp_msg);
+		xfree(resp_msg);
+	}
+
+	/* Reset current Memory/MCDRAM mode */
+	if (mcdram_mode) {
+		argv[0] = "syscfg";
+		argv[1] = "/bcs";
+		argv[2] = "";
+		argv[3] = "BIOSSETTINGS";
+		argv[4] = "Memory Mode";
+		argv[5] = mcdram_mode;
+		argv[6] = NULL;
+		resp_msg = _run_script(syscfg_path, argv, &status);
+		if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
+			error("%s: syscfg (set memory mode) status:%u response:%s",
+			      __func__, status, resp_msg);
+			error_code = SLURM_ERROR;
+		}
+		xfree(mcdram_mode);
+	}
+
+	return error_code;
 }
 
 /* Return true if the plugin requires PowerSave mode for booting nodes */
