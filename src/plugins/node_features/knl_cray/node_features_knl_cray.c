@@ -2099,12 +2099,6 @@ extern bool node_features_p_node_power(void)
 	return true;
 }
 
-/* Return true if the plugin requires RebootProgram for booting nodes */
-extern bool node_features_p_node_reboot(void)
-{
-	return false;
-}
-
 /* Note the active features associated with a set of nodes have been updated.
  * Specifically update the node's "hbm" GRES value as needed.
  * IN active_features - New active features

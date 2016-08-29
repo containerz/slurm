@@ -60,7 +60,6 @@ typedef struct node_features_ops {
 	int	(*job_valid)	(char *job_features);
 	char *	(*job_xlate)	(char *job_features);
 	bool	(*node_power)	(void);
-	bool	(*node_reboot)	(void);
 	void	(*node_state)	(char **avail_modes, char **current_mode);
 	int	(*node_update)	(char *active_features, bitstr_t *node_bitmap);
 	char *	(*node_xlate)	(char *new_features, char *orig_features);
@@ -77,7 +76,6 @@ static const char *syms[] = {
 	"node_features_p_job_valid",
 	"node_features_p_job_xlate",
 	"node_features_p_node_power",
-	"node_features_p_node_reboot",
 	"node_features_p_node_state",
 	"node_features_p_node_update",
 	"node_features_p_node_xlate",
@@ -286,27 +284,6 @@ extern bool node_features_g_node_power(void)
 	END_TIMER2("node_features_g_node_power");
 
 	return node_power;
-}
-
-/* Return true if the plugin requires RebootProgram for booting nodes */
-extern bool node_features_g_node_reboot(void)
-{
-	DEF_TIMERS;
-	bool node_reboot = false;
-	int i;
-
-	START_TIMER;
-	(void) node_features_g_init();
-	slurm_mutex_lock(&g_context_lock);
-	for (i = 0; i < g_context_cnt; i++) {
-		node_reboot = (*(ops[i].node_reboot))();
-		if (node_reboot)
-			break;
-	}
-	slurm_mutex_unlock(&g_context_lock);
-	END_TIMER2("node_features_g_node_reboot");
-
-	return node_reboot;
 }
 
 /* Get this node's current and available MCDRAM and NUMA settings from BIOS.

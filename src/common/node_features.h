@@ -64,9 +64,6 @@ extern int node_features_g_job_valid(char *job_features);
  * RET node boot options, must be xfreed */
 extern char *node_features_g_job_xlate(char *job_features);
 
-/* Return true if the plugin requires RebootProgram for booting nodes */
-extern bool node_features_g_node_reboot(void);
-
 /* Return true if the plugin requires PowerSave mode for booting nodes */
 extern bool node_features_g_node_power(void);
 
