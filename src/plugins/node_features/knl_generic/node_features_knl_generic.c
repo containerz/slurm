@@ -1174,6 +1174,10 @@ extern int node_features_p_node_set(char *active_features)
 		xfree(mcdram_mode);
 	}
 
+	/* Clear features, do not pass as argument to reboot program
+	 * (assuming we are calling /usr/sbin/reboot). */
+	active_features[0] = '\0';
+
 	return error_code;
 }
 

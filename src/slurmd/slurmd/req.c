@@ -2285,12 +2285,16 @@ _rpc_reboot(slurm_msg_t *msg)
 				sp = xstrdup(reboot_program);
 			reboot_msg = (reboot_msg_t *) msg->data;
 			if (reboot_msg && reboot_msg->features) {
-				xstrfmtcat(cmd, "%s %s",
-					   sp, reboot_msg->features);
 				info("Node reboot request with features %s being processed",
 				     reboot_msg->features);
 				(void) node_features_g_node_set(
 						reboot_msg->features);
+				if (reboot_msg->features[0]) {
+					xstrfmtcat(cmd, "%s %s",
+						   sp, reboot_msg->features);
+				} else {
+					cmd = xstrdup(sp);
+				}
 			} else {
 				cmd = xstrdup(sp);
 				info("Node reboot request being processed");
