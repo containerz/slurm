@@ -85,8 +85,9 @@
 #define KNL_MCDRAM_FLAG	0xff00
 #define KNL_CACHE	0x0100
 #define KNL_EQUAL	0x0200
-#define KNL_SPLIT	0x0400
+#define KNL_HYBRID	0x0400
 #define KNL_FLAT	0x0800
+#define KNL_AUTO	0x1000
 
 /* These are defined here so when we link with something other than
  * the slurmctld we will have these symbols defined.  They will get
@@ -279,8 +280,8 @@ static char *_knl_mcdram_str(uint16_t mcdram_num)
 		xstrfmtcat(mcdram_str, "%scache", sep);
 		sep = ",";
 	}
-	if (mcdram_num & KNL_SPLIT) {
-		xstrfmtcat(mcdram_str, "%ssplit", sep);
+	if (mcdram_num & KNL_HYBRID) {
+		xstrfmtcat(mcdram_str, "%shybrid", sep);
 		sep = ",";
 	}
 	if (mcdram_num & KNL_FLAT) {
@@ -289,6 +290,10 @@ static char *_knl_mcdram_str(uint16_t mcdram_num)
 	}
 	if (mcdram_num & KNL_EQUAL) {
 		xstrfmtcat(mcdram_str, "%sequal", sep);
+		sep = ",";
+	}
+	if (mcdram_num & KNL_AUTO) {
+		xstrfmtcat(mcdram_str, "%sauto", sep);
 //		sep = ",";	/* Remove to avoid CLANG error */
 	}
 
@@ -306,12 +311,14 @@ static uint16_t _knl_mcdram_token(char *token)
 
 	if (!xstrcasecmp(token, "cache"))
 		mcdram_num = KNL_CACHE;
-	else if (!xstrcasecmp(token, "split"))
-		mcdram_num = KNL_SPLIT;
+	else if (!xstrcasecmp(token, "hybrid"))
+		mcdram_num = KNL_HYBRID;
 	else if (!xstrcasecmp(token, "flat"))
 		mcdram_num = KNL_FLAT;
 	else if (!xstrcasecmp(token, "equal"))
 		mcdram_num = KNL_EQUAL;
+	else if (!xstrcasecmp(token, "auto"))
+		mcdram_num = KNL_AUTO;
 
 	return mcdram_num;
 }
