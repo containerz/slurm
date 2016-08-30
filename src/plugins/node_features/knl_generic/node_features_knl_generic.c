@@ -155,42 +155,6 @@ static s_p_options_t knl_conf_file_options[] = {
 	{NULL}
 };
 
-typedef struct mcdram_cap {
-	uint32_t nid;
-	char *mcdram_cfg;
-} mcdram_cap_t;
-
-typedef struct mcdram_cfg {
-	uint64_t dram_size;
-	uint32_t nid;
-	char *mcdram_cfg;
-	uint64_t mcdram_size;
-	uint16_t mcdram_pct;
-} mcdram_cfg_t;
-
-typedef struct mcdram_cfg2 {
-	int hbm_pct;
-	char *mcdram_cfg;
-	char *nid_str;
-	bitstr_t *node_bitmap;
-} mcdram_cfg2_t;
-
-typedef struct numa_cap {
-	uint32_t nid;
-	char *numa_cfg;
-} numa_cap_t;
-
-typedef struct numa_cfg {
-	uint32_t nid;
-	char *numa_cfg;
-} numa_cfg_t;
-
-typedef struct numa_cfg2 {
-	char *nid_str;
-	bitstr_t *node_bitmap;
-	char *numa_cfg;
-} numa_cfg2_t;
-
 static s_p_hashtbl_t *_config_make_tbl(char *filename);
 static int  _knl_mcdram_bits_cnt(uint16_t mcdram_num);
 static uint16_t _knl_mcdram_parse(char *mcdram_str, char *sep);
