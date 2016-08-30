@@ -749,10 +749,15 @@ extern int node_features_p_reconfig(void)
 }
 
 /* Update active and available features on specified nodes,
- * sets features on all nodes if node_list is NULL
- * NOTE: Not applicable in knl_generic plugin (called from slurmctld daemon) */
+ * sets features on all nodes if node_list is NULL */
 extern int node_features_p_get_node(char *node_list)
 {
+	slurm_mutex_lock(&config_mutex);
+	if (reconfig) {
+		(void) init();
+		reconfig = false;
+	}
+	slurm_mutex_unlock(&config_mutex);
 	return SLURM_SUCCESS;
 }
 
@@ -1166,6 +1171,7 @@ extern bool node_features_p_node_power(void)
 extern int node_features_p_node_update(char *active_features,
 				       bitstr_t *node_bitmap)
 {
+//FIXME: Need to get HBM details for implementation.
 	int i, i_first, i_last;
 	int rc = SLURM_SUCCESS;
 	uint16_t mcdram_inx;
